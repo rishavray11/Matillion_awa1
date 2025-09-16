@@ -1,0 +1,219 @@
+type: "orchestration"
+version: "1.0"
+pipeline:
+  components:
+    Start:
+      type: "start"
+      transitions:
+        unconditional:
+        - "Create Table"
+        - "Run Transformation"
+      parameters:
+        componentName: "Start"
+    Create Table:
+      type: "create-table-v2"
+      transitions:
+        success:
+        - "S3 Load"
+      parameters:
+        componentName: "Create Table"
+        createMethod: "Replace"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        table: "GW_CUSTOMER_ACC"
+        snowflakeTableType: "Permanent"
+        columns:
+        - - "DATA_VALUE"
+          - "VARIANT"
+          - ""
+          - ""
+          - ""
+          - "No"
+          - "No"
+          - ""
+          - ""
+        defaultDdlCollation:
+        primaryKeys:
+        clusteringKeys:
+        dataRetentionTimeInDays:
+        comment:
+      postProcessing:
+        updateOutputMessage:
+        updateScalarVariables:
+    S3 Load:
+      type: "s3-load"
+      transitions:
+        success:
+        - "And"
+      parameters:
+        componentName: "S3 Load"
+        stage: "[Custom]"
+        authentication: "Credentials"
+        s3ObjectPrefix: "s3://mybucketnewawa/cust/"
+        pattern: "customer_accounts.json "
+        encryption: "None"
+        warehouse: "[Environment Default]"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        targetTable: "GW_CUSTOMER_ACC"
+        loadColumns:
+        - "DATA_VALUE"
+        format: "[Custom]"
+        fileType: "JSON"
+        compression: "AUTO"
+        enableOctal: "False"
+        allowDuplicates: "False"
+        stripOuterArray: "False"
+        stripNullValues: "False"
+        ignoreUtf8Errors: "False"
+        nullIf1:
+        trimSpace1: "False"
+        onError: "Abort Statement"
+        sizeLimitB:
+        purgeFiles: "False"
+        matchByColumnName: "None"
+        truncateColumns: "False"
+        forceLoad: "False"
+      postProcessing:
+        updateOutputMessage:
+        updateScalarVariables:
+    Run Transformation:
+      type: "run-transformation"
+      transitions:
+        success:
+        - "Table Iterator"
+      parameters:
+        componentName: "Run Transformation"
+        transformationJob: "trns_fixed_flow.tran.yaml"
+        setScalarVariables:
+        setGridVariables:
+      postProcessing:
+        updateOutputMessage:
+        updateScalarVariables:
+    Excel Query:
+      type: "excel-query"
+      parameters:
+        componentName: "Excel Query"
+        basicAdvancedMode: "Advanced"
+        storageType: "Amazon S3 Storage"
+        storageUrl: "s3://mybucketnewawa/cust/store_lite (1).xlsx"
+        containsHeaderRow: "Yes"
+        connectionOptions:
+        sqlQuery: "SELECT* FROM ${worksheet_name}"
+        type: "Standard"
+        primaryKeys:
+        warehouse: "[Environment Default]"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        targetTable: "GW_${worksheet_name}"
+        stage: "[Custom]"
+        stagePlatform: "Snowflake Managed"
+        loadOptions:
+        autoDebug: "Off"
+      postProcessing:
+        updateOutputMessage:
+        updateScalarVariables:
+    Table Iterator:
+      type: "table-iterator"
+      transitions:
+        success:
+        - "And"
+      iterationTarget: "Excel Query"
+      parameters:
+        componentName: "Table Iterator"
+        mode: "Basic"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        targetTable: "GW_SHEET_NAME"
+        concurrency: "Concurrent"
+        columnMapping:
+        - - "WORKSHEET_NAME_NEW"
+          - "worksheet_name"
+      postProcessing:
+        updateOutputMessage:
+        updateScalarVariables:
+    And:
+      type: "and"
+      transitions:
+        unconditional:
+        - "Run Transformation 2"
+      parameters:
+        componentName: "And"
+      postProcessing:
+        updateOutputMessage:
+        updateScalarVariables:
+    Run Transformation 2:
+      type: "run-transformation"
+      transitions:
+        success:
+        - "End Success"
+      parameters:
+        componentName: "Run Transformation 2"
+        transformationJob: "trn_Profit_And_Revenue.tran.yaml"
+        setScalarVariables:
+        setGridVariables:
+      postProcessing:
+        updateOutputMessage:
+        updateScalarVariables:
+    End Success:
+      type: "end-success"
+      parameters:
+        componentName: "End Success"
+      postProcessing:
+        updateOutputMessage:
+        updateScalarVariables:
+  variables:
+    worksheet_name:
+      metadata:
+        type: "TEXT"
+        description: ""
+        scope: "COPIED"
+        visibility: "PUBLIC"
+      defaultValue: "ITEMS"
+design:
+  components:
+    Start:
+      position:
+        x: -220
+        "y": 40
+      tempMetlId: 1
+    Create Table:
+      position:
+        x: -70
+        "y": -30
+      tempMetlId: 2
+    S3 Load:
+      position:
+        x: 100
+        "y": -30
+      tempMetlId: 3
+    Run Transformation:
+      position:
+        x: -60
+        "y": 100
+      tempMetlId: 4
+    Excel Query:
+      position:
+        x: 100
+        "y": 100
+      tempMetlId: 5
+    Table Iterator:
+      position:
+        x: 100
+        "y": 80
+      tempMetlId: 6
+    And:
+      position:
+        x: 290
+        "y": 40
+      tempMetlId: 7
+    Run Transformation 2:
+      position:
+        x: 450
+        "y": 40
+      tempMetlId: 8
+    End Success:
+      position:
+        x: 610
+        "y": 40
+      tempMetlId: 9

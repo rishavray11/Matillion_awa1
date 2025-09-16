@@ -1,0 +1,43 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  components:
+    Fixed Flow:
+      type: "fixed-flow"
+      parameters:
+        componentName: "Fixed Flow"
+        columns:
+        - - "WORKSHEET_NAME_NEW"
+          - "VARCHAR"
+          - "100"
+          - ""
+        values:
+        - - "ITEMS"
+        - - "ORDERS"
+        - - "ORDER_ITEMS"
+    Rewrite Table:
+      type: "rewrite-table"
+      sources:
+      - "Fixed Flow"
+      parameters:
+        componentName: "Rewrite Table"
+        warehouse: "[Environment Default]"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        targetTable: "GW_SHEET_NAME"
+        orderBy:
+      postProcessing:
+        updateOutputMessage:
+        updateScalarVariables:
+design:
+  components:
+    Fixed Flow:
+      position:
+        x: 0
+        "y": 0
+      tempMetlId: 1
+    Rewrite Table:
+      position:
+        x: 160
+        "y": 0
+      tempMetlId: 2

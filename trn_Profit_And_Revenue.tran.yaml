@@ -1,0 +1,346 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  components:
+    GW_CUSTOMER_ACC:
+      type: "table-input"
+      parameters:
+        componentName: "GW_CUSTOMER_ACC"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        targetTable: "GW_CUSTOMER_ACC"
+        columnNames:
+        - "DATA_VALUE"
+        timeOffset:
+    FLATTERN_JSON:
+      type: "extract-nested-data-sf"
+      sources:
+      - "GW_CUSTOMER_ACC"
+      parameters:
+        componentName: "FLATTERN_JSON"
+        includeInputColumns: "No"
+        columns:
+        - name: "data"
+          datatype: "VARIANT"
+          size: "0"
+          decimalPlaces: "0"
+          columnName: "DATA_VALUE"
+          aliasName: "data"
+          isArray: "true"
+          include: "false"
+          childElements:
+          - name: "data-element"
+            datatype: "VARIANT"
+            size: "0"
+            decimalPlaces: "0"
+            columnName: "DATA_VALUE"
+            aliasName: "data-element"
+            isArray: "false"
+            include: "false"
+            childElements:
+            - name: "customer_rid"
+              datatype: "NUMBER"
+              size: "0"
+              decimalPlaces: "0"
+              columnName: "DATA_VALUE"
+              aliasName: "customer_rid"
+              isArray: "false"
+              include: "true"
+            - name: "account_name"
+              datatype: "VARCHAR"
+              size: "0"
+              decimalPlaces: "0"
+              columnName: "DATA_VALUE"
+              aliasName: "account_name"
+              isArray: "false"
+              include: "true"
+        outerJoin: "No"
+        inputAlias: "I"
+        arrayPrefix: "F"
+        castingMethod: "Fail on invalid data"
+        caseColumnAliasNames: "No"
+    GW_ORDERS:
+      type: "table-input"
+      parameters:
+        componentName: "GW_ORDERS"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        targetTable: "GW_ORDERS"
+        columnNames:
+        - "RowId"
+        - "RID"
+        - "CUSTOMER_RID"
+        - "ORDER_DATE"
+        - "LAST_UPDATED"
+        timeOffset:
+    GW_ITEMS:
+      type: "table-input"
+      parameters:
+        componentName: "GW_ITEMS"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        targetTable: "GW_ITEMS"
+        columnNames:
+        - "RowId"
+        - "RID"
+        - "NAME"
+        - "PRICE"
+        - "COST"
+        - "LAST_UPDATED"
+        timeOffset:
+    GW_ORDER_ITEMS:
+      type: "table-input"
+      parameters:
+        componentName: "GW_ORDER_ITEMS"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        targetTable: "GW_ORDER_ITEMS"
+        columnNames:
+        - "RowId"
+        - "RID"
+        - "ORDER_RID"
+        - "ITEM_RID"
+        - "QUANTITY"
+        - "LAST_UPDATED"
+        timeOffset:
+    ORDERS:
+      type: "convert-type"
+      sources:
+      - "GW_ORDERS"
+      parameters:
+        componentName: "ORDERS"
+        conversions:
+        - - "CUSTOMER_RID"
+          - "NUMBER"
+          - ""
+          - ""
+        - - "RID"
+          - "NUMBER"
+          - ""
+          - ""
+        - - "ORDER_DATE"
+          - "DATE"
+          - ""
+          - ""
+    ITEMS:
+      type: "convert-type"
+      sources:
+      - "GW_ITEMS"
+      parameters:
+        componentName: "ITEMS"
+        conversions:
+        - - "RowId"
+          - "NUMBER"
+          - ""
+          - ""
+        - - "RID"
+          - "NUMBER"
+          - ""
+          - ""
+        - - "NAME"
+          - "VARCHAR"
+          - ""
+          - ""
+    ORDER_ITEMS:
+      type: "convert-type"
+      sources:
+      - "GW_ORDER_ITEMS"
+      parameters:
+        componentName: "ORDER_ITEMS"
+        conversions:
+        - - "ITEM_RID"
+          - "NUMBER"
+          - ""
+          - ""
+        - - "RID"
+          - "NUMBER"
+          - ""
+          - ""
+        - - "ORDER_RID"
+          - "NUMBER"
+          - ""
+          - ""
+        - - "QUANTITY"
+          - "NUMBER"
+          - ""
+          - ""
+    Join:
+      type: "join"
+      sources:
+      - "FLATTERN_JSON"
+      - "ORDERS"
+      - "ITEMS"
+      - "ORDER_ITEMS"
+      parameters:
+        componentName: "Join"
+        mainTable: "ORDER_ITEMS"
+        mainTableAlias: "OI"
+        joins:
+        - - "ORDERS"
+          - "O"
+          - "Inner"
+        - - "ITEMS"
+          - "I"
+          - "Inner"
+        - - "FLATTERN_JSON"
+          - "F"
+          - "Inner"
+        joinExpressions:
+        - - "\"OI\".\"RowId\"=\"O\".\"RowId\""
+          - "OI_Inner_O"
+        - - "\"OI\".\"RowId\"=\"I\".\"RowId\""
+          - "OI_Inner_I"
+        - - "\"F\".\"customer_rid\"=\"O\".\"CUSTOMER_RID\""
+          - "OI_Inner_F"
+        columnMappings:
+        - - "O.ORDER_DATE"
+          - "ORDER_DATE"
+        - - "OI.QUANTITY"
+          - "QUANTITY"
+        - - "I.NAME"
+          - "NAME"
+        - - "I.PRICE"
+          - "PRICE"
+        - - "I.COST"
+          - "COST"
+        - - "F.account_name"
+          - "ACCOUNT_NAME"
+    Calculator:
+      type: "calculator"
+      sources:
+      - "Join"
+      parameters:
+        componentName: "Calculator"
+        includeInputColumns: "Yes"
+        calculations:
+        - - "ROUND(((\"PRICE\"-\"COST\")*\"QUANTITY\"),2)"
+          - "PROFIT"
+        - - "ROUND((\"PRICE\"*\"QUANTITY\"),2)"
+          - "REVENUE"
+        - - "MONTH(\"ORDER_DATE\")"
+          - "ORDER_MONTH"
+        - - "QUARTER(\"ORDER_DATE\")"
+          - "ORDER_QTR"
+        - - "YEAR(\"ORDER_DATE\")"
+          - "ORDER_YEAR"
+    Aggregate:
+      type: "aggregate"
+      sources:
+      - "Calculator"
+      parameters:
+        componentName: "Aggregate"
+        groupings:
+        - "ACCOUNT_NAME"
+        - "NAME"
+        - "ORDER_YEAR"
+        - "ORDER_QTR"
+        - "ORDER_MONTH"
+        aggregations:
+        - - "PROFIT"
+          - "Sum"
+        - - "REVENUE"
+          - "Sum"
+        groupingType: "Group By"
+    Rename:
+      type: "rename"
+      sources:
+      - "Aggregate"
+      parameters:
+        componentName: "Rename"
+        columnMapping:
+        - - "NAME"
+          - "ITEM_NAME"
+        - - "ACCOUNT_NAME"
+          - "ACCOUNT_NAME"
+        - - "ORDER_YEAR"
+          - "ORDER_YEAR"
+        - - "ORDER_QTR"
+          - "ORDER_QTR"
+        - - "ORDER_MONTH"
+          - "ORDER_MONTH"
+        - - "sum_PROFIT"
+          - "TOTAL_PROFIT"
+        - - "sum_REVENUE"
+          - "TOTAL_REVENUE"
+        includeInputColumns: "No"
+    Rewrite Table:
+      type: "rewrite-table"
+      sources:
+      - "Rename"
+      parameters:
+        componentName: "Rewrite Table"
+        warehouse: "[Environment Default]"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        targetTable: "GW_PROFIT_BY_ACCOUNT"
+        orderBy:
+      postProcessing:
+        updateOutputMessage:
+        updateScalarVariables:
+design:
+  components:
+    GW_CUSTOMER_ACC:
+      position:
+        x: -180
+        "y": -60
+      tempMetlId: 1
+    FLATTERN_JSON:
+      position:
+        x: -20
+        "y": -60
+      tempMetlId: 2
+    GW_ORDERS:
+      position:
+        x: -180
+        "y": 20
+      tempMetlId: 3
+    GW_ITEMS:
+      position:
+        x: -180
+        "y": 110
+      tempMetlId: 4
+    GW_ORDER_ITEMS:
+      position:
+        x: -180
+        "y": 200
+      tempMetlId: 5
+    ORDERS:
+      position:
+        x: -20
+        "y": 20
+      tempMetlId: 6
+    ITEMS:
+      position:
+        x: -20
+        "y": 110
+      tempMetlId: 7
+    ORDER_ITEMS:
+      position:
+        x: -10
+        "y": 200
+      tempMetlId: 8
+    Join:
+      position:
+        x: 340
+        "y": 60
+      tempMetlId: 9
+    Calculator:
+      position:
+        x: 500
+        "y": 60
+      tempMetlId: 10
+    Aggregate:
+      position:
+        x: 660
+        "y": 60
+      tempMetlId: 11
+    Rename:
+      position:
+        x: 820
+        "y": 60
+      tempMetlId: 12
+    Rewrite Table:
+      position:
+        x: 980
+        "y": 60
+      tempMetlId: 13
