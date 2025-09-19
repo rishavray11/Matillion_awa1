@@ -1,0 +1,87 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  components:
+    Customer:
+      type: "table-input"
+      parameters:
+        componentName: "Customer"
+        database: "[Environment Default]"
+        schema: "[Environment Default]"
+        targetTable: "Customer"
+        columnNames:
+        - "CustomerID"
+        - "LastName"
+        - "FirstName"
+        - "BirthDate"
+        - "Gender"
+        - "ParticipantType"
+        - "RegionID"
+        - "MaritalStatus"
+        timeOffset:
+    Calculator:
+      type: "calculator"
+      sources:
+      - "Customer"
+      parameters:
+        componentName: "Calculator"
+        includeInputColumns: "No"
+        calculations:
+        - - "\"FirstName\""
+          - "FirstName"
+        - - "\"LastName\""
+          - "LastName"
+        - - "CONCAT(\"FirstName\",' ', \"LastName\")"
+          - "FullName"
+        - - "YEAR(\"BirthDate\")"
+          - "BirthYear"
+        - - "MONTH(\"BirthDate\")"
+          - "BirthMonth"
+        - - "DAY(\"BirthDate\")"
+          - "BirthDay"
+    Aggregate:
+      type: "aggregate"
+      sources:
+      - "Calculator"
+      parameters:
+        componentName: "Aggregate"
+        groupings:
+        - "BirthDay"
+        aggregations:
+        - - "FullName"
+          - "Count Distinct"
+        groupingType: "Group By"
+    Rename:
+      type: "rename"
+      sources:
+      - "Aggregate"
+      parameters:
+        componentName: "Rename"
+        columnMapping:
+        - - "count_distinct_FullName"
+          - "Total_cus"
+        - - "BirthDay"
+          - "Birth_day"
+        includeInputColumns: "No"
+design:
+  components:
+    Customer:
+      position:
+        x: -330
+        "y": 50
+      tempMetlId: 1
+    Calculator:
+      position:
+        x: -170
+        "y": 50
+      tempMetlId: 2
+    Aggregate:
+      position:
+        x: -10
+        "y": 50
+      tempMetlId: 3
+    Rename:
+      position:
+        x: 150
+        "y": 50
+      tempMetlId: 4
